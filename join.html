@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Join Trip - TrackMyTeam</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #e9f7ef; }
+  </style>
+</head>
+<body>
+  <h2>📍 You’re Joining a Trip!</h2>
+  <p>
+    <label>Your Name: <input type="text" id="userName" /></label>
+  </p>
+  <button onclick="startJoin()">Join Trip</button>
+  <p id="status">Initializing...</p>
+
+  <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDhB0zWB90hsVXjILMeOyPjltvs9-asAqI",
+    authDomain: "locator-7cd34.firebaseapp.com",
+    projectId: "locator-7cd34",
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const tripId = urlParams.get("trip");
+  const statusEl = document.getElementById("status");
+
+  function startJoin() {
+    const name = document.getElementById("userName").value.trim();
+    if (!tripId) return (statusEl.textContent = "❌ Invalid trip link.");
+    if (!name) return alert("Please enter your name.");
+
+    auth.signInAnonymously().then(() => {
+      const uid = firebase.auth().currentUser.uid;
+      statusEl.textContent = "✅ Joined trip! Sharing location...";
+      startLocationTracking(uid, name);
+    }).catch(error => {
+      console.error("Auth error:", error);
+      statusEl.textContent = "❌ Auth failed.";
+    });
+  }
+
+  function startLocationTracking(uid, name) {
+    if (!navigator.geolocation) {
+      statusEl.textContent = "❌ Geolocation not supported.";
+      return;
+    }
+
+    navigator.geolocation.watchPosition(
+      position => {
+        const { latitude, longitude } = position.coords;
+        db.collection("trips").doc(tripId).collection("members").doc(uid).set({
+          name: name,
+          lat: latitude,
+          lng: longitude,
+          updatedAt: new Date()
+        });
+        statusEl.textContent = `📡 Location sent: (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      },
+      err => {
+        console.error("Location error:", err);
+        statusEl.textContent = "❌ Location access denied.";
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+    );
+  }
+</script>
+
+</body>
+</html>

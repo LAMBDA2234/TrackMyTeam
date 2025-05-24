@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Create Trip - TrackMyTeam</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: #f4f6f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .card {
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.8rem;
+      color: #333;
+    }
+    input {
+      padding: 0.75rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+    button {
+      padding: 0.75rem 1.5rem;
+      background: #0077ff;
+      color: white;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-top: 0.5rem;
+    }
+    button:hover {
+      background: #005fcc;
+    }
+    .tripCode {
+      font-size: 1.2rem;
+      margin-top: 1rem;
+      font-weight: bold;
+      color: #0077ff;
+      word-break: break-word;
+    }
+    #joinLink {
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+      color: #555;
+      word-break: break-word;
+    }
+    #joinLink a {
+      color: #0077ff;
+      text-decoration: none;
+    }
+    #qrCode {
+      margin-top: 1rem;
+    }
+    #shareButtons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    #shareButtons a, #shareButtons button {
+      padding: 0.5rem 1rem;
+      background: #0077ff;
+      color: white;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    #shareButtons a:hover, #shareButtons button:hover {
+      background: #005fcc;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>Create a Trip</h1>
+    <input type="text" id="coachName" placeholder="Enter Your Name" />
+    <button onclick="createTrip()">Create Trip</button>
+    <div class="tripCode" id="tripCode"></div>
+
+    <div id="shareSection" style="display:none; margin-top: 1rem;">
+      <button onclick="toggleShare()">Share QR</button>
+      <div id="joinLink"></div>
+      <div id="shareButtons" style="display: none;">
+        <button onclick="copyLink()">📋 Copy Link</button>
+        <a id="waLink" href="#" target="_blank"><button>📲 WhatsApp</button></a>
+        <a id="tgLink" href="#" target="_blank"><button>✈️ Telegram</button></a>
+      </div>
+      <div id="qrCode" style="margin-top: 1rem;"></div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDhB0zWB90hsVXjILMeOyPjltvs9-asAqI",
+      authDomain: "locator-7cd34.firebaseapp.com",
+      projectId: "locator-7cd34"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    function generateTripId() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let id = '';
+      for (let i = 0; i < 6; i++) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return 'trip_' + id;
+    }
+
+    async function createTrip() {
+      const coachName = document.getElementById("coachName").value.trim();
+      if (!coachName) return alert("Enter your name");
+
+      const tripId = generateTripId();
+      await db.collection("trips").doc(tripId).set({
+        createdAt: Date.now(),
+        coach: coachName
+      });
+
+      document.getElementById("tripCode").innerText = "Trip Code: " + tripId;
+
+      // Save the full join link to use in sharing
+      window.currentTripLink = "join.html?trip=" + tripId;
+
+
+      // Show share section
+      document.getElementById("shareSection").style.display = "block";
+
+      // Clear QR and link initially
+      document.getElementById("joinLink").innerHTML = "";
+      document.getElementById("qrCode").innerHTML = "";
+    }
+
+    function toggleShare() {
+      const link = window.currentTripLink;
+      document.getElementById("joinLink").innerHTML = `Join link: <a href="${link}" target="_blank">${link}</a>`;
+      document.getElementById("shareButtons").style.display = "flex";
+
+      // QR Code
+      const qrDiv = document.getElementById("qrCode");
+      qrDiv.innerHTML = "";
+      new QRCode(qrDiv, {
+        text: link,
+        width: 180,
+        height: 180,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+      });
+
+      // Platform links
+      document.getElementById("waLink").href = `https://wa.me/?text=${encodeURIComponent(link)}`;
+      document.getElementById("tgLink").href = `https://t.me/share/url?url=${encodeURIComponent(link)}`;
+    }
+
+    function copyLink() {
+      navigator.clipboard.writeText(window.currentTripLink).then(() => {
+        alert("Link copied to clipboard!");
+      });
+    }
+  </script>
+
+</body>
+</html>
